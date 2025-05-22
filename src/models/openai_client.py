@@ -1,6 +1,7 @@
 import openai
 import time
 import json
+import os
 from src.models.base_llm_client import BaseLLMClient
 from src.config.settings import (
     OPENAI_API_KEY,
@@ -11,26 +12,38 @@ from src.config.settings import (
     EXTRACTION_SYSTEM_PROMPT,
     EXTRACTION_USER_PROMPT_TEMPLATE
 )
+from typing import List, Dict
 
 class OpenAIClient(BaseLLMClient):
-    def __init__(self):
-        """Initialize the OpenAI client."""
+    def __init__(self, model_name: str = None, temperature: float = None, max_tokens: int = None):
+        """
+        Initialize the OpenAI client.
+        
+        Args:
+            model_name: Optional model name to use. If not provided, uses the global setting.
+            temperature: Optional temperature to use. If not provided, uses the global setting.
+            max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
+        """
         self.api_key = OPENAI_API_KEY
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not found. Please ensure you have created a .env file with OPENAI_API_KEY=your-api-key")
+            raise ValueError("OPENAI_API_KEY environment variable not set")
             
         # Check if we're in test mode
-        self.is_test_mode = self.api_key == "test-key"
+        self.is_test_mode = OPENAI_API_KEY == "test-key"
         
         if not self.is_test_mode:
             self.client = openai.OpenAI(
                 base_url=OPENAI_API_BASE,
-                api_key=self.api_key
+                api_key=OPENAI_API_KEY
             )
             
-        self.model_name = LLM_MODEL_NAME
-        self.temperature = LLM_TEMPERATURE
-        self.max_tokens = LLM_MAX_TOKENS
+        self.model_name = model_name or LLM_MODEL_NAME
+        self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
+        self.max_tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
+        
+        print(f"\nOpenAI client initialized with:")
+        print(f"Model: {self.model_name}")
+        print(f"Temperature: {self.temperature}")
 
     def extract_triples(self, text_chunk, chunk_number):
         """
@@ -67,6 +80,11 @@ class OpenAIClient(BaseLLMClient):
             # Format the user prompt
             user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(text_chunk=text_chunk)
             
+            print(f"\nMaking API call to OpenAI for chunk {chunk_number}...")
+            print(f"Using model: {self.model_name}")
+            print(f"System prompt length: {len(EXTRACTION_SYSTEM_PROMPT)}")
+            print(f"User prompt length: {len(user_prompt)}")
+            
             # Make the API call
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -77,6 +95,8 @@ class OpenAIClient(BaseLLMClient):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens
             )
+            
+            print(f"Received response from OpenAI for chunk {chunk_number}")
             
             # Extract and parse the response
             llm_output = response.choices[0].message.content.strip()
@@ -111,15 +131,20 @@ class OpenAIClient(BaseLLMClient):
                             item['chunk'] = chunk_number
                             valid_triples.append(item)
                 
+                print(f"Successfully parsed {len(valid_triples)} triples from response")
                 return True, valid_triples, None
                 
             except json.JSONDecodeError as json_err:
+                print(f"JSON parsing error: {str(json_err)}")
                 return False, None, f"JSON parsing error: {str(json_err)}"
                 
         except openai.APIError as e:
+            print(f"OpenAI API Error: {str(e)}")
             return False, None, f"OpenAI API Error: {str(e)}"
         except openai.RateLimitError as e:
+            print(f"Rate limit exceeded: {str(e)}")
             time.sleep(60)  # Wait before retrying
             return False, None, f"Rate limit exceeded: {str(e)}"
         except Exception as e:
+            print(f"Unexpected error: {str(e)}")
             return False, None, f"Unexpected error: {str(e)}" 

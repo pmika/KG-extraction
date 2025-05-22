@@ -2,20 +2,38 @@ import pandas as pd
 from src.models.openai_client import OpenAIClient
 from src.models.anthropic_client import AnthropicClient
 from src.processors.text_processor import TextProcessor
-from src.config.settings import LLM_PROVIDER
+from src.config.settings import LLM_PROVIDER, LLM_MODEL_NAME, LLM_TEMPERATURE, LLM_MAX_TOKENS
 
 class KnowledgeGraphPipeline:
-    def __init__(self):
+    def __init__(self, llm_provider: str = None, model_name: str = None, temperature: float = None, max_tokens: int = None):
         """
         Initialize the knowledge graph extraction pipeline.
+        
+        Args:
+            llm_provider: Optional LLM provider to use. If not provided, uses the global setting.
+            model_name: Optional model name to use. If not provided, uses the global setting.
+            temperature: Optional temperature to use. If not provided, uses the global setting.
+            max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
         """
         # Initialize the appropriate LLM client based on the provider
-        if LLM_PROVIDER == "openai":
-            self.llm_client = OpenAIClient()
-        elif LLM_PROVIDER == "anthropic":
-            self.llm_client = AnthropicClient()
+        provider = llm_provider if llm_provider is not None else LLM_PROVIDER
+        model = model_name if model_name is not None else LLM_MODEL_NAME
+        temp = temperature if temperature is not None else LLM_TEMPERATURE
+        tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
+        
+        print(f"\nCreating pipeline with provider: {provider}")
+        print(f"Model name: {model}")
+        print(f"Temperature: {temp}")
+        print(f"Max tokens: {tokens}")
+        
+        if provider == "openai":
+            print("Initializing OpenAI client...")
+            self.llm_client = OpenAIClient(model_name=model, temperature=temp, max_tokens=tokens)
+        elif provider == "anthropic":
+            print("Initializing Anthropic client...")
+            self.llm_client = AnthropicClient(model_name=model, temperature=temp, max_tokens=tokens)
         else:
-            raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+            raise ValueError(f"Unsupported LLM provider: {provider}")
             
         self.text_processor = TextProcessor()
         
@@ -38,19 +56,24 @@ class KnowledgeGraphPipeline:
             if not chunks:
                 return False, None, "No chunks were created from the input text"
                 
+            print(f"\nProcessing {len(chunks)} chunks...")
+                
             # 2. Process each chunk
             all_extracted_triples = []
             failed_chunks = []
             
             for chunk in chunks:
+                print(f"\nProcessing chunk {chunk['chunk_number']}...")
                 success, triples, error = self.llm_client.extract_triples(
                     chunk['text'],
                     chunk['chunk_number']
                 )
                 
                 if success:
+                    print(f"Successfully extracted {len(triples)} triples from chunk {chunk['chunk_number']}")
                     all_extracted_triples.extend(triples)
                 else:
+                    print(f"Failed to process chunk {chunk['chunk_number']}: {error}")
                     failed_chunks.append({
                         'chunk_number': chunk['chunk_number'],
                         'error': error

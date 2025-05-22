@@ -24,10 +24,12 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()  # Default to OpenAI if not specified
 
 # LLM Configuration
-LLM_MODEL_NAME = {
+LLM_MODEL_NAMES = {
     "openai": "gpt-4-turbo",
-    "anthropic": "claude-3-opus-20240229"
-}[LLM_PROVIDER]
+    "anthropic": "claude-3-7-sonnet-20250219"
+}
+
+LLM_MODEL_NAME = LLM_MODEL_NAMES[LLM_PROVIDER]
 
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS = 4096  # Default max tokens for both OpenAI and Anthropic

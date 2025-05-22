@@ -54,3 +54,6 @@ db.sqlite3-journal
 .DS_Store
 .AppleDouble
 .LSOverride 
+
+# project specific
+evaluation_results/

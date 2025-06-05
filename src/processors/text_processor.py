@@ -1,4 +1,7 @@
 from src.config.settings import CHUNK_SIZE, CHUNK_OVERLAP
+import pymupdf4llm
+from pathlib import Path
+from typing import Union, Optional, List, Dict
 
 class TextProcessor:
     def __init__(self, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
@@ -18,6 +21,50 @@ class TextProcessor:
             
         self.chunk_size = chunk_size
         self.overlap = overlap
+
+    def extract_text_from_pdf(self, pdf_path: Union[str, Path], pages: Optional[list] = None) -> str:
+        """
+        Extract text from a PDF file using PyMuPDF4LLM.
+        
+        Args:
+            pdf_path (Union[str, Path]): Path to the PDF file
+            pages (Optional[list]): List of page numbers to extract (0-based). If None, extracts all pages.
+            
+        Returns:
+            str: Extracted text in markdown format
+        """
+        try:
+            # Convert to markdown format which preserves document structure
+            markdown_text = pymupdf4llm.to_markdown(str(pdf_path), pages=pages)
+            return markdown_text
+        except Exception as e:
+            raise ValueError(f"Error extracting text from PDF: {str(e)}")
+
+    def process_text(self, text: str) -> List[Dict[str, Union[str, int]]]:
+        """
+        Process text by splitting it into chunks.
+        
+        Args:
+            text (str): The text to process
+            
+        Returns:
+            List[Dict[str, Union[str, int]]]: List of dictionaries containing chunk text and chunk number
+        """
+        return self.split_into_chunks(text)
+
+    def process_pdf(self, pdf_path: Union[str, Path], pages: Optional[list] = None) -> List[Dict[str, Union[str, int]]]:
+        """
+        Process a PDF file by extracting its text and splitting it into chunks.
+        
+        Args:
+            pdf_path (Union[str, Path]): Path to the PDF file
+            pages (Optional[list]): List of page numbers to extract (0-based). If None, extracts all pages.
+            
+        Returns:
+            List[Dict[str, Union[str, int]]]: List of dictionaries containing chunk text and chunk number
+        """
+        text = self.extract_text_from_pdf(pdf_path, pages=pages)
+        return self.process_text(text)
 
     def split_into_chunks(self, text):
         """

@@ -15,7 +15,14 @@ from src.config.settings import (
 from typing import List, Dict
 
 class OpenAIClient(BaseLLMClient):
-    def __init__(self, model_name: str = None, temperature: float = None, max_tokens: int = None):
+    def __init__(
+        self, 
+        model_name: str = None, 
+        temperature: float = None, 
+        max_tokens: int = None,
+        system_prompt: str = None,
+        user_prompt_template: str = None
+    ):
         """
         Initialize the OpenAI client.
         
@@ -23,6 +30,8 @@ class OpenAIClient(BaseLLMClient):
             model_name: Optional model name to use. If not provided, uses the global setting.
             temperature: Optional temperature to use. If not provided, uses the global setting.
             max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
+            system_prompt: Optional system prompt to use. If not provided, uses the global setting.
+            user_prompt_template: Optional user prompt template to use. If not provided, uses the global setting.
         """
         self.api_key = OPENAI_API_KEY
         if not self.api_key:
@@ -40,10 +49,14 @@ class OpenAIClient(BaseLLMClient):
         self.model_name = model_name or LLM_MODEL_NAME
         self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
         self.max_tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
+        self.system_prompt = system_prompt if system_prompt is not None else EXTRACTION_SYSTEM_PROMPT
+        self.user_prompt_template = user_prompt_template if user_prompt_template is not None else EXTRACTION_USER_PROMPT_TEMPLATE
         
         print(f"\nOpenAI client initialized with:")
         print(f"Model: {self.model_name}")
         print(f"Temperature: {self.temperature}")
+        print(f"System prompt length: {len(self.system_prompt)}")
+        print(f"User prompt template length: {len(self.user_prompt_template)}")
 
     def extract_triples(self, text_chunk, chunk_number):
         """
@@ -78,18 +91,18 @@ class OpenAIClient(BaseLLMClient):
             
         try:
             # Format the user prompt
-            user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(text_chunk=text_chunk)
+            user_prompt = self.user_prompt_template.format(text_chunk=text_chunk)
             
             print(f"\nMaking API call to OpenAI for chunk {chunk_number}...")
             print(f"Using model: {self.model_name}")
-            print(f"System prompt length: {len(EXTRACTION_SYSTEM_PROMPT)}")
+            print(f"System prompt length: {len(self.system_prompt)}")
             print(f"User prompt length: {len(user_prompt)}")
             
             # Make the API call
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
-                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                    {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=self.temperature,

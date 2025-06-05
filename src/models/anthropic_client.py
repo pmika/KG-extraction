@@ -33,7 +33,14 @@ def time_limit(seconds):
         signal.alarm(0)
 
 class AnthropicClient(BaseLLMClient):
-    def __init__(self, model_name: str = None, temperature: float = None, max_tokens: int = None):
+    def __init__(
+        self, 
+        model_name: str = None, 
+        temperature: float = None, 
+        max_tokens: int = None,
+        system_prompt: str = None,
+        user_prompt_template: str = None
+    ):
         """
         Initialize the Anthropic client.
         
@@ -41,6 +48,8 @@ class AnthropicClient(BaseLLMClient):
             model_name: Optional model name to use. If not provided, uses the global setting.
             temperature: Optional temperature to use. If not provided, uses the global setting.
             max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
+            system_prompt: Optional system prompt to use. If not provided, uses the global setting.
+            user_prompt_template: Optional user prompt template to use. If not provided, uses the global setting.
         """
         self.api_key = ANTHROPIC_API_KEY
         if not self.api_key:
@@ -57,11 +66,15 @@ class AnthropicClient(BaseLLMClient):
         self.model_name = model_name or LLM_MODEL_NAME
         self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
         self.max_tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
+        self.system_prompt = system_prompt if system_prompt is not None else EXTRACTION_SYSTEM_PROMPT
+        self.user_prompt_template = user_prompt_template if user_prompt_template is not None else EXTRACTION_USER_PROMPT_TEMPLATE
         self.timeout = 30  # 30 seconds timeout
         
         print(f"\nAnthropic client initialized with:")
         print(f"Model: {self.model_name}")
         print(f"Temperature: {self.temperature}")
+        print(f"System prompt length: {len(self.system_prompt)}")
+        print(f"User prompt template length: {len(self.user_prompt_template)}")
 
     def extract_triples(self, text_chunk, chunk_number):
         """
@@ -96,11 +109,11 @@ class AnthropicClient(BaseLLMClient):
             
         try:
             # Format the user prompt
-            user_prompt = EXTRACTION_USER_PROMPT_TEMPLATE.format(text_chunk=text_chunk)
+            user_prompt = self.user_prompt_template.format(text_chunk=text_chunk)
             
             print(f"Making API call to Anthropic for chunk {chunk_number}...")
             print(f"Using model: {self.model_name}")
-            print(f"System prompt length: {len(EXTRACTION_SYSTEM_PROMPT)}")
+            print(f"System prompt length: {len(self.system_prompt)}")
             print(f"User prompt length: {len(user_prompt)}")
             
             try:
@@ -109,7 +122,7 @@ class AnthropicClient(BaseLLMClient):
                     response = self.client.messages.create(
                         model=self.model_name,
                         max_tokens=self.max_tokens,
-                        system=EXTRACTION_SYSTEM_PROMPT,  # System prompt as top-level parameter
+                        system=self.system_prompt,  # System prompt as top-level parameter
                         messages=[
                             {"role": "user", "content": user_prompt}
                         ],

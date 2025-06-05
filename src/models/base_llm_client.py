@@ -4,7 +4,14 @@ class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
     
     @abstractmethod
-    def __init__(self, model_name: str = None, temperature: float = None, max_tokens: int = None):
+    def __init__(
+        self, 
+        model_name: str = None, 
+        temperature: float = None, 
+        max_tokens: int = None,
+        system_prompt: str = None,
+        user_prompt_template: str = None
+    ):
         """
         Initialize the LLM client.
         
@@ -12,6 +19,8 @@ class BaseLLMClient(ABC):
             model_name: Optional model name to use
             temperature: Optional temperature to use
             max_tokens: Optional maximum tokens to use
+            system_prompt: Optional system prompt to use
+            user_prompt_template: Optional user prompt template to use
         """
         pass
         

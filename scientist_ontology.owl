@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+         xmlns:sci="http://example.org/science#">
+
+    <owl:Ontology rdf:about="http://example.org/science"/>
+
+    <!-- Classes -->
+    <owl:Class rdf:about="http://example.org/science#Person">
+        <rdfs:label>Person</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#Scientist">
+        <rdfs:subClassOf rdf:resource="http://example.org/science#Person"/>
+        <rdfs:label>Scientist</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#Place">
+        <rdfs:label>Place</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#Institution">
+        <rdfs:subClassOf rdf:resource="http://example.org/science#Place"/>
+        <rdfs:label>Institution</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#Discovery">
+        <rdfs:label>Discovery</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#Award">
+        <rdfs:label>Award</rdfs:label>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.org/science#NobelPrize">
+        <rdfs:subClassOf rdf:resource="http://example.org/science#Award"/>
+        <rdfs:label>Nobel Prize</rdfs:label>
+    </owl:Class>
+
+    <!-- Object Properties -->
+    <owl:ObjectProperty rdf:about="http://example.org/science#bornIn">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://example.org/science#Place"/>
+        <rdfs:label>born in</rdfs:label>
+    </owl:ObjectProperty>
+
+    <owl:ObjectProperty rdf:about="http://example.org/science#educatedAt">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://example.org/science#Institution"/>
+        <rdfs:label>educated at</rdfs:label>
+    </owl:ObjectProperty>
+
+    <owl:ObjectProperty rdf:about="http://example.org/science#discovered">
+        <rdfs:domain rdf:resource="http://example.org/science#Scientist"/>
+        <rdfs:range rdf:resource="http://example.org/science#Discovery"/>
+        <rdfs:label>discovered</rdfs:label>
+    </owl:ObjectProperty>
+
+    <owl:ObjectProperty rdf:about="http://example.org/science#awarded">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://example.org/science#Award"/>
+        <rdfs:label>awarded</rdfs:label>
+    </owl:ObjectProperty>
+
+    <owl:ObjectProperty rdf:about="http://example.org/science#sharedWith">
+        <rdfs:domain rdf:resource="http://example.org/science#Award"/>
+        <rdfs:range rdf:resource="http://example.org/science#Person"/>
+        <rdfs:label>shared with</rdfs:label>
+    </owl:ObjectProperty>
+
+    <owl:ObjectProperty rdf:about="http://example.org/science#founded">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://example.org/science#Institution"/>
+        <rdfs:label>founded</rdfs:label>
+    </owl:ObjectProperty>
+
+    <!-- Data Properties -->
+    <owl:DatatypeProperty rdf:about="http://example.org/science#name">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:label>name</rdfs:label>
+    </owl:DatatypeProperty>
+
+    <owl:DatatypeProperty rdf:about="http://example.org/science#birthDate">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#date"/>
+        <rdfs:label>birth date</rdfs:label>
+    </owl:DatatypeProperty>
+
+    <owl:DatatypeProperty rdf:about="http://example.org/science#deathDate">
+        <rdfs:domain rdf:resource="http://example.org/science#Person"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#date"/>
+        <rdfs:label>death date</rdfs:label>
+    </owl:DatatypeProperty>
+
+    <owl:DatatypeProperty rdf:about="http://example.org/science#year">
+        <rdfs:domain rdf:resource="http://example.org/science#Award"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+        <rdfs:label>year</rdfs:label>
+    </owl:DatatypeProperty>
+
+    <owl:DatatypeProperty rdf:about="http://example.org/science#category">
+        <rdfs:domain rdf:resource="http://example.org/science#NobelPrize"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:label>category</rdfs:label>
+    </owl:DatatypeProperty>
+
+</rdf:RDF> 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Tuple, Union
 
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
@@ -25,18 +26,19 @@ class BaseLLMClient(ABC):
         pass
         
     @abstractmethod
-    def extract_triples(self, text_chunk, chunk_number):
+    def extract_triples(self, user_prompt: str, chunk_number: int) -> Tuple[bool, Union[List[Dict], Dict, str], Optional[str]]:
         """
-        Extract triples from a text chunk using the LLM.
+        Extract information from a text chunk using the LLM.
         
         Args:
-            text_chunk (str): The text to process
+            user_prompt (str): The fully formatted user prompt
             chunk_number (int): The chunk number for tracking
             
         Returns:
             tuple: (success, result, error_message)
             - success (bool): Whether the extraction was successful
-            - result (list): List of extracted triples if successful
+            - result: For triple extraction: List of dicts with subject/predicate/object
+                     For JSON-LD: Dict containing JSON-LD data or string containing JSON-LD
             - error_message (str): Error message if unsuccessful
         """
         pass 

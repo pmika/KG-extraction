@@ -76,41 +76,55 @@ class AnthropicClient(BaseLLMClient):
         print(f"System prompt length: {len(self.system_prompt)}")
         print(f"User prompt template length: {len(self.user_prompt_template)}")
 
-    def extract_triples(self, text_chunk, chunk_number):
+    def extract_triples(self, user_prompt, chunk_number):
         """
-        Extract triples from a text chunk using the Anthropic API.
+        Extract information from a text chunk using the Anthropic API.
         
         Args:
-            text_chunk (str): The text to process
+            user_prompt (str): The fully formatted user prompt
             chunk_number (int): The chunk number for tracking
-            
+        
         Returns:
             tuple: (success, result, error_message)
             - success (bool): Whether the extraction was successful
-            - result (list): List of extracted triples if successful
+            - result: For triple extraction: List of dicts with subject/predicate/object
+                     For JSON-LD: Dict containing JSON-LD data or string containing JSON-LD
             - error_message (str): Error message if unsuccessful
         """
         if self.is_test_mode:
             # Return mock data for testing
-            return True, [
-                {
-                    "subject": "marie curie",
-                    "predicate": "discovered",
-                    "object": "radium",
-                    "chunk": chunk_number
-                },
-                {
-                    "subject": "marie curie",
-                    "predicate": "won",
-                    "object": "nobel prize in physics",
-                    "chunk": chunk_number
-                }
-            ], None
-            
+            if "JSON-LD" in self.system_prompt:
+                # Return mock JSON-LD data
+                return True, {
+                    "@graph": [{
+                        "@id": "person:marie_curie",
+                        "@type": "Person",
+                        "name": "Marie Curie",
+                        "discovered": [{
+                            "@id": "element:radium",
+                            "@type": "Discovery",
+                            "name": "Radium"
+                        }]
+                    }]
+                }, None
+            else:
+                # Return mock triple data
+                return True, [
+                    {
+                        "subject": "marie curie",
+                        "predicate": "discovered",
+                        "object": "radium",
+                        "chunk": chunk_number
+                    },
+                    {
+                        "subject": "marie curie",
+                        "predicate": "won",
+                        "object": "nobel prize in physics",
+                        "chunk": chunk_number
+                    }
+                ], None
+        
         try:
-            # Format the user prompt
-            user_prompt = self.user_prompt_template.format(text_chunk=text_chunk)
-            
             print(f"Making API call to Anthropic for chunk {chunk_number}...")
             print(f"Using model: {self.model_name}")
             print(f"System prompt length: {len(self.system_prompt)}")
@@ -143,31 +157,36 @@ class AnthropicClient(BaseLLMClient):
             try:
                 parsed_data = json.loads(llm_output)
                 
-                # Handle if response is a dict containing the list
-                if isinstance(parsed_data, dict):
-                    # Check if this is a single triple object
-                    if all(k in parsed_data for k in ['subject', 'predicate', 'object']):
-                        parsed_json = [parsed_data]  # Wrap single triple in array
-                    else:
-                        list_values = [v for v in parsed_data.values() if isinstance(v, list)]
-                        if len(list_values) == 1:
-                            parsed_json = list_values[0]
-                        else:
-                            return False, None, "JSON object received, but doesn't contain a single list of triples"
-                elif isinstance(parsed_data, list):
-                    parsed_json = parsed_data
+                # Check if we're in JSON-LD mode
+                if "JSON-LD" in self.system_prompt:
+                    # Return the JSON-LD data directly
+                    return True, parsed_data, None
                 else:
-                    return False, None, "Parsed JSON is not a list or expected dictionary wrapper"
-                
-                # Validate and extract triples
-                valid_triples = []
-                for item in parsed_json:
-                    if isinstance(item, dict) and all(k in item for k in ['subject', 'predicate', 'object']):
-                        if all(isinstance(item[k], str) for k in ['subject', 'predicate', 'object']):
-                            item['chunk'] = chunk_number
-                            valid_triples.append(item)
-                
-                return True, valid_triples, None
+                    # Handle triple extraction format
+                    if isinstance(parsed_data, dict):
+                        # Check if this is a single triple object
+                        if all(k in parsed_data for k in ['subject', 'predicate', 'object']):
+                            parsed_json = [parsed_data]  # Wrap single triple in array
+                        else:
+                            list_values = [v for v in parsed_data.values() if isinstance(v, list)]
+                            if len(list_values) == 1:
+                                parsed_json = list_values[0]
+                            else:
+                                return False, None, "JSON object received, but doesn't contain a single list of triples"
+                    elif isinstance(parsed_data, list):
+                        parsed_json = parsed_data
+                    else:
+                        return False, None, "Parsed JSON is not a list or expected dictionary wrapper"
+                    
+                    # Validate and extract triples
+                    valid_triples = []
+                    for item in parsed_json:
+                        if isinstance(item, dict) and all(k in item for k in ['subject', 'predicate', 'object']):
+                            if all(isinstance(item[k], str) for k in ['subject', 'predicate', 'object']):
+                                item['chunk'] = chunk_number
+                                valid_triples.append(item)
+                    
+                    return True, valid_triples, None
                 
             except json.JSONDecodeError as json_err:
                 return False, None, f"JSON parsing error: {str(json_err)}"

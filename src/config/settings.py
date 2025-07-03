@@ -12,7 +12,7 @@ pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_colwidth', 150)
 
 # Text Processing Configuration
-CHUNK_SIZE = 200
+CHUNK_SIZE = 2000
 CHUNK_OVERLAP = 100
 
 # API Configuration
@@ -26,7 +26,7 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()  # Default to OpenAI 
 # LLM Configuration
 LLM_MODEL_NAMES = {
     "openai": "gpt-4-turbo",
-    "anthropic": "claude-3-7-sonnet-20250219"
+    "anthropic": "claude-3-5-sonnet-20241022"
 }
 
 LLM_MODEL_NAME = LLM_MODEL_NAMES[LLM_PROVIDER]
@@ -82,68 +82,50 @@ Your task is to:
 5. Use appropriate JSON-LD features like @type, @id, and nested objects to represent complex relationships
 6. Create unique @id values for entities using a consistent naming scheme
 7. Include all relevant attributes and relationships, even if they require multiple triples to represent
+8. Make sure each unique entity is represented with one unique id. 
+9. Make sure there are no duplicate entities in the output.
+
+**CRITICAL INSTRUCTIONS:**
+- You MUST use ONLY the exact class names and property names listed below from the ontology. Do NOT invent new properties or classes. Do NOT use synonyms or alternate spellings.
+- If you cannot express a fact using the provided ontology, OMIT it from the output.
+- Use the property and class names EXACTLY as they appear in the lists below.
+- Use ONLY the provided local context. Do NOT reference any remote URLs or external contexts.
+
+**Ontology Information:**
+- **Available Ontology Classes (ONLY use these for @type):**
+{classes}
+- **Available Object Properties (ONLY use these for relationships):**
+{object_properties}
+- **Available Data Properties (ONLY use these for attributes):**
+{data_properties}
+- **Base IRI:** {base_iri}
+- **Ontology Context (USE THIS EXACT CONTEXT):**
+{context}
+- **Full Ontology (OWL):**
+{ontology_owl}
+
+**Output Format Requirements:**
+- Use the @graph array to contain all entities
+- Use the provided context for all terms
+- Do NOT include any @context field that references remote URLs
+- Ensure all @id values are unique and follow a consistent pattern (e.g., "person:marie_curie", "place:warsaw")
 
 The output should be valid JSON-LD that can be expanded and compacted using the provided context.
 """
 
 JSONLD_USER_PROMPT_TEMPLATE = """
-Please extract information from the text below and represent it in JSON-LD format using the provided ontology context and the full OWL ontology definitions.
+Please extract information from the text below and represent it in JSON-LD format using the ontology and context provided in the system prompt.
 
 **VERY IMPORTANT RULES:**
 1. Output Format: Respond ONLY with a single, valid JSON-LD object
-2. **ONTOLOGY COMPLIANCE:** You MUST ONLY use classes and properties that are explicitly listed in the provided ontology. Do NOT use any classes or properties that are not in the provided lists.
-3. Use @type to specify the class of entities - ONLY use classes from the provided Classes list
-4. Use @id to create unique identifiers for entities (e.g., "entity:unique_id")
-5. Represent complex relationships using nested objects
-6. Include all relevant attributes and relationships that can be mapped to the provided ontology
-7. Ensure the output is valid JSON-LD that can be expanded and compacted
-8. Use the @graph array to contain all entities
-9. Create new entities for any referenced objects that have their own properties
-10. **STRICT ADHERENCE:** If information in the text cannot be mapped to the provided ontology classes and properties, either omit it or map it to the most appropriate available class/property
-11. **USE DEFINITIONS:** Use the definitions and descriptions from the full OWL ontology below to guide your mapping and ensure correct usage of terms.
-
-**Available Ontology Classes (ONLY use these for @type):**
-{classes}
-
-**Available Object Properties (ONLY use these for relationships):**
-{object_properties}
-
-**Available Data Properties (ONLY use these for attributes):**
-{data_properties}
-
-**Base IRI:** {base_iri}
-
-**Ontology Context:**
-{context}
-
-**Full Ontology (OWL):**
-```owl
-{ontology_owl}
-```
+2. Use only the ontology classes and properties described in the system prompt
+3. Ensure the output is valid JSON-LD that can be expanded and compacted
+4. Use the @graph array to contain all entities
 
 **Text to Process:**
 ```text
 {text_chunk}
 ```
-
-**Example JSON-LD Output (using only provided ontology classes):**
-{{
-  "@context": {context},
-  "@graph": [
-    {{
-      "@id": "entity:example_entity",
-      "@type": "[USE_ONLY_CLASSES_FROM_ABOVE]",
-      "[USE_ONLY_DATA_PROPERTIES_FROM_ABOVE]": "value",
-      "[USE_ONLY_OBJECT_PROPERTIES_FROM_ABOVE]": [
-        {{
-          "@id": "entity:related_entity",
-          "@type": "[USE_ONLY_CLASSES_FROM_ABOVE]",
-          "[USE_ONLY_DATA_PROPERTIES_FROM_ABOVE]": "related_value"
-        }}
-      ]
-    }}
-  ]
-}}
 
 **Your JSON-LD Output (MUST use only the provided ontology classes and properties):**
 """ 

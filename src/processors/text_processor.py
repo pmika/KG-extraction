@@ -1,10 +1,9 @@
-from src.config.settings import CHUNK_SIZE, CHUNK_OVERLAP
 import pymupdf4llm
 from pathlib import Path
 from typing import Union, Optional, List, Dict
 
 class TextProcessor:
-    def __init__(self, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    def __init__(self, chunk_size=2000, overlap=100):
         """
         Initialize the text processor with chunking parameters.
         

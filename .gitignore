@@ -57,3 +57,4 @@ db.sqlite3-journal
 
 # project specific
 evaluation_results/
+*.jsonld

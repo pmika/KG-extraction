@@ -9,7 +9,7 @@ import seaborn as sns
 from difflib import unified_diff
 
 from src.pipeline import KnowledgeGraphPipeline
-from src.config.settings import LLM_PROVIDER
+from src.config.configuration import Configuration, LLMConfig, TextProcessingConfig, ExtractionConfig
 
 @dataclass
 class EvaluationConfig:
@@ -43,6 +43,30 @@ class EvaluationConfig:
             "max_tokens": self.max_tokens,
             "model_name": self.model_name
         }
+    
+    def to_configuration(self) -> Configuration:
+        """Convert to the new Configuration format."""
+        llm_config = LLMConfig(
+            provider=self.llm_provider,
+            model_name=self.model_name or "gpt-4-turbo",
+            temperature=self.temperature,
+            max_tokens=self.max_tokens or 4096
+        )
+        
+        text_config = TextProcessingConfig(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap
+        )
+        
+        extraction_config = ExtractionConfig(
+            extraction_mode="triples"  # Default to triples for evaluation
+        )
+        
+        return Configuration(
+            llm=llm_config,
+            text_processing=text_config,
+            extraction=extraction_config
+        )
 
 class PipelineEvaluator:
     def __init__(self, output_dir: str = "evaluation_results"):
@@ -70,13 +94,11 @@ class PipelineEvaluator:
         print(f"Model name: {config.model_name}")
         print(f"Temperature: {config.temperature}")
         
+        # Convert to new Configuration format
+        new_config = config.to_configuration()
+        
         # Initialize pipeline with configuration
-        pipeline = KnowledgeGraphPipeline(
-            llm_provider=config.llm_provider,
-            model_name=config.model_name,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens
-        )
+        pipeline = KnowledgeGraphPipeline(new_config)
         
         # Process text and collect metrics
         start_time = datetime.now()
@@ -199,42 +221,23 @@ class PipelineEvaluator:
         print(f"Config 1 raw triples: {result1['results']['triples']}")
         print(f"Config 2 raw triples: {result2['results']['triples']}")
         
-        # Convert triples to comparable format (excluding source_chunk)
+        # Convert triples to comparable format
         def make_comparable(triple):
-            return (triple['subject'].lower(), triple['predicate'].lower(), triple['object'].lower())
-            
-        triples1 = set(make_comparable(triple) for triple in result1["results"]["triples"])
-        triples2 = set(make_comparable(triple) for triple in result2["results"]["triples"])
+            return f"{triple['subject']} | {triple['predicate']} | {triple['object']}"
         
-        print(f"\nConverted to sets:")
-        print(f"Config 1 set size: {len(triples1)}")
-        print(f"Config 2 set size: {len(triples2)}")
+        triples1 = [make_comparable(t) for t in result1['results']['triples']]
+        triples2 = [make_comparable(t) for t in result2['results']['triples']]
         
-        # Convert triples to sorted lists for diff
-        triples1_list = sorted(str(triple) for triple in triples1)
-        triples2_list = sorted(str(triple) for triple in triples2)
-        
-        print(f"\nConverted to sorted lists:")
-        print(f"Config 1 list size: {len(triples1_list)}")
-        print(f"Config 2 list size: {len(triples2_list)}")
+        # Sort for consistent comparison
+        triples1.sort()
+        triples2.sort()
         
         # Generate diff
         diff = list(unified_diff(
-            triples1_list,
-            triples2_list,
+            triples1, triples2,
             fromfile=f"Config 1 ({config1.llm_provider})",
             tofile=f"Config 2 ({config2.llm_provider})",
             lineterm=""
         ))
         
-        # Add summary statistics
-        summary = [
-            f"\nSummary:",
-            f"Config 1 ({config1.llm_provider}): {len(triples1)} triples",
-            f"Config 2 ({config2.llm_provider}): {len(triples2)} triples",
-            f"Unique to Config 1: {len(triples1 - triples2)} triples",
-            f"Unique to Config 2: {len(triples2 - triples1)} triples",
-            f"Common triples: {len(triples1 & triples2)} triples"
-        ]
-        
-        return "\n".join(diff + summary) 
+        return "\n".join(diff) 

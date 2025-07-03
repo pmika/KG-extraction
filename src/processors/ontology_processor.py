@@ -105,9 +105,6 @@ class OntologyProcessor:
             if isinstance(jsonld_data, str):
                 jsonld_data = json.loads(jsonld_data)
                 
-            print("\nValidating JSON-LD data:")
-            print(json.dumps(jsonld_data, indent=2))
-                
             # Expand the JSON-LD to check for valid terms
             try:
                 expanded = jsonld.expand(jsonld_data, {"expandContext": self.context})

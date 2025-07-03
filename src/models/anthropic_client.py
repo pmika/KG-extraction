@@ -1,21 +1,16 @@
 import anthropic
 import time
 import json
+import os
 from src.models.base_llm_client import BaseLLMClient
 from src.config.settings import (
-    ANTHROPIC_API_KEY,
-    LLM_MODEL_NAME,
-    LLM_TEMPERATURE,
-    LLM_MAX_TOKENS,
-    EXTRACTION_SYSTEM_PROMPT,
-    EXTRACTION_USER_PROMPT_TEMPLATE
+    ANTHROPIC_API_KEY
 )
 import requests
 from requests.exceptions import Timeout, RequestException
 import signal
 from contextlib import contextmanager
 import sys
-import os
 from typing import List, Dict
 
 class TimeoutException(Exception):
@@ -45,29 +40,31 @@ class AnthropicClient(BaseLLMClient):
         Initialize the Anthropic client.
         
         Args:
-            model_name: Optional model name to use. If not provided, uses the global setting.
-            temperature: Optional temperature to use. If not provided, uses the global setting.
-            max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
-            system_prompt: Optional system prompt to use. If not provided, uses the global setting.
-            user_prompt_template: Optional user prompt template to use. If not provided, uses the global setting.
+            model_name: Model name to use
+            temperature: Temperature to use
+            max_tokens: Maximum tokens to use
+            system_prompt: System prompt to use
+            user_prompt_template: User prompt template to use
         """
-        self.api_key = ANTHROPIC_API_KEY
+        # Use provided values or fall back to environment variables
+        self.api_key = os.getenv("ANTHROPIC_API_KEY") or ANTHROPIC_API_KEY
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
             
         # Check if we're in test mode
-        self.is_test_mode = ANTHROPIC_API_KEY == "test-key"
+        self.is_test_mode = self.api_key == "test-key"
         
         if not self.is_test_mode:
             self.client = anthropic.Anthropic(
-                api_key=ANTHROPIC_API_KEY
+                api_key=self.api_key
             )
             
-        self.model_name = model_name or LLM_MODEL_NAME
-        self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
-        self.max_tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
-        self.system_prompt = system_prompt if system_prompt is not None else EXTRACTION_SYSTEM_PROMPT
-        self.user_prompt_template = user_prompt_template if user_prompt_template is not None else EXTRACTION_USER_PROMPT_TEMPLATE
+        # Use provided values (no fallbacks to settings)
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.system_prompt = system_prompt
+        self.user_prompt_template = user_prompt_template
         self.timeout = 30  # 30 seconds timeout
         
         print(f"\nAnthropic client initialized with:")
@@ -136,7 +133,9 @@ class AnthropicClient(BaseLLMClient):
                     response = self.client.messages.create(
                         model=self.model_name,
                         max_tokens=self.max_tokens,
-                        system=self.system_prompt,  # System prompt as top-level parameter
+                        system=[
+                            {"type": "text", "text": self.system_prompt, "cache_control": {"type": "ephemeral"}}
+                        ],
                         messages=[
                             {"role": "user", "content": user_prompt}
                         ],
@@ -147,6 +146,41 @@ class AnthropicClient(BaseLLMClient):
                 return False, None, f"Request timed out after {self.timeout} seconds for chunk {chunk_number}"
             
             print(f"Received response from Anthropic for chunk {chunk_number}")
+            
+            # Calculate and print cost
+            try:
+                usage = getattr(response, 'usage', None)
+                if usage:
+                    input_tokens = getattr(usage, 'input_tokens', 0)
+                    output_tokens = getattr(usage, 'output_tokens', 0)
+                else:
+                    # fallback for dict-like response
+                    input_tokens = response.get('usage', {}).get('input_tokens', 0)
+                    output_tokens = response.get('usage', {}).get('output_tokens', 0)
+
+                # Pricing per 1k tokens (as of June 2024)
+                model_prices = {
+                    # Claude 3
+                    'claude-3-opus-20240229': (0.015, 0.075),
+                    'claude-3-sonnet-20240229': (0.003, 0.015),
+                    'claude-3-haiku-20240307': (0.00025, 0.00125),
+                    # Claude 3.5
+                    'claude-3-5-sonnet-20240620': (0.003, 0.015),
+                    'claude-3-5-sonnet-20241022': (0.003, 0.015),
+                    'claude-3-5-haiku-20241022': (0.0008, 0.004),
+                    # Claude 3.7
+                    'claude-3-7-sonnet-20250219': (0.003, 0.015),
+                    # Claude 4
+                    'claude-opus-4-20250514': (0.015, 0.075),
+                    'claude-sonnet-4-20250514': (0.003, 0.015),
+                }
+                # Default to Sonnet pricing if model not found
+                input_price, output_price = model_prices.get(self.model_name, (0.003, 0.015))
+                cost = (input_tokens / 1000) * input_price + (output_tokens / 1000) * output_price
+                print(f"Token usage: input={input_tokens}, output={output_tokens}")
+                print(f"Estimated cost for this call: ${cost:.6f} (model: {self.model_name})")
+            except Exception as e:
+                print(f"[Cost Calculation Error] {e}")
             
             # Extract and parse the response
             llm_output = response.content[0].text.strip()

@@ -5,12 +5,7 @@ import os
 from src.models.base_llm_client import BaseLLMClient
 from src.config.settings import (
     OPENAI_API_KEY,
-    OPENAI_API_BASE,
-    LLM_MODEL_NAME,
-    LLM_TEMPERATURE,
-    LLM_MAX_TOKENS,
-    EXTRACTION_SYSTEM_PROMPT,
-    EXTRACTION_USER_PROMPT_TEMPLATE
+    OPENAI_API_BASE
 )
 from typing import List, Dict
 
@@ -27,30 +22,32 @@ class OpenAIClient(BaseLLMClient):
         Initialize the OpenAI client.
         
         Args:
-            model_name: Optional model name to use. If not provided, uses the global setting.
-            temperature: Optional temperature to use. If not provided, uses the global setting.
-            max_tokens: Optional maximum tokens to use. If not provided, uses the global setting.
-            system_prompt: Optional system prompt to use. If not provided, uses the global setting.
-            user_prompt_template: Optional user prompt template to use. If not provided, uses the global setting.
+            model_name: Model name to use
+            temperature: Temperature to use
+            max_tokens: Maximum tokens to use
+            system_prompt: System prompt to use
+            user_prompt_template: User prompt template to use
         """
-        self.api_key = OPENAI_API_KEY
+        # Use provided values or fall back to environment variables
+        self.api_key = os.getenv("OPENAI_API_KEY") or OPENAI_API_KEY
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
             
         # Check if we're in test mode
-        self.is_test_mode = OPENAI_API_KEY == "test-key"
+        self.is_test_mode = self.api_key == "test-key"
         
         if not self.is_test_mode:
             self.client = openai.OpenAI(
-                base_url=OPENAI_API_BASE,
-                api_key=OPENAI_API_KEY
+                base_url=os.getenv("OPENAI_API_BASE") or OPENAI_API_BASE,
+                api_key=self.api_key
             )
             
-        self.model_name = model_name or LLM_MODEL_NAME
-        self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
-        self.max_tokens = max_tokens if max_tokens is not None else LLM_MAX_TOKENS
-        self.system_prompt = system_prompt if system_prompt is not None else EXTRACTION_SYSTEM_PROMPT
-        self.user_prompt_template = user_prompt_template if user_prompt_template is not None else EXTRACTION_USER_PROMPT_TEMPLATE
+        # Use provided values (no fallbacks to settings)
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.system_prompt = system_prompt
+        self.user_prompt_template = user_prompt_template
         
         print(f"\nOpenAI client initialized with:")
         print(f"Model: {self.model_name}")
